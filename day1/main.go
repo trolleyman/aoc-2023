@@ -53,12 +53,6 @@ func getInput(path string) ([]string, error) {
 	return lines, nil
 }
 
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
 func parseArgs() (string, bool, error) {
 	if len(os.Args) != 3 {
 		return "", false, errors.New(fmt.Sprintf("Invalid number of arguments (expected 3, got %v)", len(os.Args)))
