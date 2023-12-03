@@ -6,9 +6,32 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
-func getinput(path string) ([]string, error) {
+func makeDigitsMap(useWords bool) map[string]int {
+	m := make(map[string]int)
+	if useWords {
+		m["one"] = 1
+		m["two"] = 2
+		m["three"] = 3
+		m["four"] = 4
+		m["five"] = 5
+		m["six"] = 6
+		m["seven"] = 7
+		m["eight"] = 8
+		m["nine"] = 9
+	}
+	for i := 1; i < 10; i++ {
+		m[fmt.Sprintf("%v", i)] = i
+	}
+	return m
+}
+
+var digits = makeDigitsMap(false)
+var digitsWithWords = makeDigitsMap(true)
+
+func getInput(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -36,60 +59,80 @@ func check(e error) {
 	}
 }
 
-func getfilename() (string, error) {
-	switch len(os.Args) {
-	case 1:
-		return "./input.txt", nil
-	case 2:
-		return os.Args[1], nil
-	default:
-		return "", errors.New(fmt.Sprintf("Invalid number of arguments: %v", len(os.Args)))
+func parseArgs() (string, bool, error) {
+	if len(os.Args) != 3 {
+		return "", false, errors.New(fmt.Sprintf("Invalid number of arguments (expected 3, got %v)", len(os.Args)))
 	}
+	useWords, err := strconv.ParseBool(os.Args[2])
+	if err != nil {
+		return "", false, err
+	}
+	return os.Args[1], useWords, nil
 }
 
-func getfirstlastdigits(line string) (int, int, error) {
-	var first *int = nil
-	var last *int = nil
+func getDigits(useWords bool) map[string]int {
+	if useWords {
+		return digits
+	}
+	return digitsWithWords
+}
 
-	for _, c := range line {
-		i, err := strconv.Atoi(string(c))
-		if err != nil {
-			continue
-		}
-		last = &i
-		if first == nil {
-			first = &i
-			continue
+func getFirstDigit(line string, useWords bool) (int, error) {
+	for i := 0; i < len(line); i++ {
+		lineSlice := line[i:]
+		for possibleDigit, digit := range getDigits(useWords) {
+			if strings.HasPrefix(lineSlice, possibleDigit) {
+				return digit, nil
+			}
 		}
 	}
+	return 0, errors.New(fmt.Sprintf("First digit not found in %#v", line))
+}
 
-	if first == nil {
-		return 0, 0, errors.New(fmt.Sprintf("First digit not found in %#v", line))
+func getLastDigit(line string, useWords bool) (int, error) {
+	for i := len(line) - 1; i >= 0; i-- {
+		lineSlice := line[i:]
+		for possibleDigit, digit := range getDigits(useWords) {
+			if strings.HasPrefix(lineSlice, possibleDigit) {
+				return digit, nil
+			}
+		}
 	}
-	if last == nil {
-		return 0, 0, errors.New(fmt.Sprintf("Last digit not found in %#v", line))
+	return 0, errors.New(fmt.Sprintf("Last digit not found in %#v", line))
+}
+
+func getFirstLastDigits(line string, useWords bool) (int, int, error) {
+	first, err := getFirstDigit(line, useWords)
+	if err != nil {
+		return 0, 0, err
 	}
-	return *first, *last, nil
+	last, err := getLastDigit(line, useWords)
+	if err != nil {
+		return 0, 0, err
+	}
+	return first, last, nil
 }
 
 func run() error {
-	filename, err := getfilename()
+	filepath, useWords, err := parseArgs()
 	if err != nil {
 		return err
 	}
 
-	lines, err := getinput(filename)
+	lines, err := getInput(filepath)
 	if err != nil {
 		return err
 	}
 
 	sum := 0
 	for _, line := range lines {
-		first, last, err := getfirstlastdigits(line)
+		first, last, err := getFirstLastDigits(line, useWords)
 		if err != nil {
 			return err
 		}
-		sum += first*10 + last
+		lineSum := first*10 + last
+		sum += lineSum
+		// fmt.Printf("line:%#v, first:%v, last:%v, lineSum:%v, sum:%v\n", line, first, last, lineSum, sum)
 	}
 	fmt.Println(sum)
 
