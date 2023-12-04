@@ -153,18 +153,34 @@ func parseArgs() (Args, error) {
 	return Args{Part: part, InputPath: os.Args[2]}, nil
 }
 
-func (c Card) getPoints() int {
-	points := 0
+func (c Card) getMatchingWinningNumbersCount() int {
+	count := 0
 	for _, number := range c.Numbers {
 		if slices.Contains(c.Winning, number) {
-			if points == 0 {
-				points = 1
-			} else {
-				points *= 2
-			}
+			count += 1
 		}
 	}
-	return points
+	return count
+}
+
+func intPow(n, m int) int {
+	if m == 0 {
+		return 1
+	}
+	result := n
+	for i := 2; i <= m; i++ {
+		result *= n
+	}
+	return result
+}
+
+func (c Card) getPoints() int {
+	count := c.getMatchingWinningNumbersCount()
+	if count == 0 {
+		return 0
+	} else {
+		return intPow(2, count-1)
+	}
 }
 
 func run() error {
@@ -190,7 +206,18 @@ func run() error {
 
 	case 2:
 		// Part 2
-
+		originalCards := cards[:]
+		for i := 0; i < len(cards); i++ {
+			card := cards[i]
+			// fmt.Printf("%+v\n", card)
+			winningCount := card.getMatchingWinningNumbersCount()
+			for j := card.Id; j < len(originalCards) && j < card.Id+winningCount; j++ {
+				extraCard := originalCards[j]
+				// fmt.Printf("+ %+v\n", extraCard)
+				cards = append(cards, extraCard)
+			}
+		}
+		fmt.Printf("%v\n", len(cards))
 	}
 
 	return nil
