@@ -54,17 +54,27 @@ func getInput(path string) (Engine, error) {
 }
 
 type Args struct {
+	Part      int
 	InputPath string
 }
 
 func parseArgs() (Args, error) {
 	switch len(os.Args) {
-	case 2:
+	case 3:
 		break
 	default:
-		return Args{}, errors.New(fmt.Sprintf("Invalid arguments. Expected %v <inputPath> [inputSet]", os.Args[0]))
+		return Args{}, errors.New(fmt.Sprintf("Invalid arguments. Expected %v <part> <inputPath>", os.Args[0]))
 	}
-	return Args{InputPath: os.Args[1]}, nil
+	var part int
+	switch os.Args[1] {
+	case "1":
+		part = 1
+	case "2":
+		part = 2
+	default:
+		return Args{}, errors.New(fmt.Sprintf("Invalid part. Expected 1/2, got %#v", os.Args[1]))
+	}
+	return Args{Part: part, InputPath: os.Args[2]}, nil
 }
 
 func isDigit(c rune) bool {
@@ -102,8 +112,20 @@ func getRune(engine Engine, x int, y int) rune {
 	return rune(engine[y][x])
 }
 
+func isValidCoordinate(engine Engine, x int, y int) bool {
+	return x >= 0 && y >= 0 && y < len(engine) && x < len(engine[y])
+}
+
+func isDigitAt(engine Engine, x int, y int) bool {
+	if !isValidCoordinate(engine, x, y) {
+		return false
+	}
+	c := getRune(engine, x, y)
+	return isDigit(c)
+}
+
 func isSymbol(engine Engine, x int, y int) bool {
-	if x < 0 || y < 0 || y >= len(engine) || x >= len(engine[y]) {
+	if !isValidCoordinate(engine, x, y) {
 		return false
 	}
 	c := getRune(engine, x, y)
@@ -174,6 +196,81 @@ func getPartNumbers(engine Engine) []int {
 	return numbers
 }
 
+func getGearNumberAt(engine Engine, x int, y int) int {
+	// fmt.Printf("@%v,%v # ", x, y)
+	for ; x < len(engine[y]) && isDigitAt(engine, x, y); x++ {
+		// fmt.Printf("%v ", x)
+	}
+	x -= 1
+	// fmt.Printf("# %v ", x)
+	gearNumber := 0
+	multiplier := 1
+	for ; x >= 0; x-- {
+		c := getRune(engine, x, y)
+		// fmt.Printf("| %v,%v,%v ", x, y, c)
+		digit, ok := parseDigit(c)
+		if !ok {
+			break
+		}
+		gearNumber += digit * multiplier
+		multiplier *= 10
+	}
+	// fmt.Printf("@ ")
+	return gearNumber
+}
+
+func getGearRatio(engine Engine, x int, y int) (int, bool) {
+	var gearNumbers []int
+	for offsetY := -1; offsetY <= 1; offsetY++ {
+		for offsetX := -1; offsetX <= 1; offsetX++ {
+			if offsetX == 0 && offsetY == 0 {
+				continue
+			}
+			if isDigitAt(engine, x+offsetX, y+offsetY) {
+				gearNumbers = append(gearNumbers, getGearNumberAt(engine, x+offsetX, y+offsetY))
+				if offsetY == 0 {
+					continue
+				}
+				if (offsetX == -1 && isDigitAt(engine, x, y+offsetY)) || (offsetX == 0 && isDigitAt(engine, x+1, y+offsetY)) {
+					break
+				}
+			}
+		}
+	}
+	switch len(gearNumbers) {
+	case 0:
+		return 0, false
+	case 1:
+		fmt.Printf("%v=", gearNumbers[0])
+		return 0, false
+	case 2:
+		fmt.Printf("%v*%v=", gearNumbers[0], gearNumbers[1])
+		return gearNumbers[0] * gearNumbers[1], true
+	}
+	panic(fmt.Sprintf("> 2 gear numbers: %#v", gearNumbers))
+}
+
+func getGearRatios(engine Engine) []int {
+	var gearRatios []int
+	for y, line := range engine {
+		fmt.Printf("= ")
+		for x := 0; x < len(line); x++ {
+			if rune(line[x]) == '*' {
+				gearRatio, ok := getGearRatio(engine, x, y)
+				if ok {
+					fmt.Printf("%v ", gearRatio)
+					gearRatios = append(gearRatios, gearRatio)
+				} else {
+					fmt.Printf("~ ")
+				}
+			}
+		}
+		fmt.Printf("=\n")
+	}
+	fmt.Printf("\n")
+	return gearRatios
+}
+
 func run() error {
 	args, err := parseArgs()
 	if err != nil {
@@ -188,12 +285,26 @@ func run() error {
 
 	fmt.Printf("%v\n\n", engine)
 
-	numbers := getPartNumbers(engine)
-	sum := 0
-	for _, number := range numbers {
-		sum += number
+	switch args.Part {
+	case 1:
+		numbers := getPartNumbers(engine)
+		sum := 0
+		for _, number := range numbers {
+			sum += number
+		}
+		fmt.Printf("%v\n", sum)
+
+	case 2:
+		gearRatios := getGearRatios(engine)
+		sum := 0
+		for _, gearRatio := range gearRatios {
+			sum += gearRatio
+		}
+		fmt.Printf("%v\n", sum)
+
+	default:
+		return errors.New(fmt.Sprintf("Unknown part %v", args.Part))
 	}
-	fmt.Printf("%v\n", sum)
 
 	return nil
 }
