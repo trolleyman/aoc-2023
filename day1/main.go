@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -55,7 +54,7 @@ func getInput(path string) ([]string, error) {
 
 func parseArgs() (string, bool, error) {
 	if len(os.Args) != 3 {
-		return "", false, errors.New(fmt.Sprintf("Invalid number of arguments (expected 3, got %v)", len(os.Args)))
+		return "", false, fmt.Errorf("invalid number of arguments (expected 3, got %v)", len(os.Args))
 	}
 	useWords, err := strconv.ParseBool(os.Args[2])
 	if err != nil {
@@ -80,7 +79,7 @@ func getFirstDigit(line string, useWords bool) (int, error) {
 			}
 		}
 	}
-	return 0, errors.New(fmt.Sprintf("First digit not found in %#v", line))
+	return 0, fmt.Errorf("first digit not found in %#v", line)
 }
 
 func getLastDigit(line string, useWords bool) (int, error) {
@@ -92,7 +91,7 @@ func getLastDigit(line string, useWords bool) (int, error) {
 			}
 		}
 	}
-	return 0, errors.New(fmt.Sprintf("Last digit not found in %#v", line))
+	return 0, fmt.Errorf("last digit not found in %#v", line)
 }
 
 func getFirstLastDigits(line string, useWords bool) (int, int, error) {

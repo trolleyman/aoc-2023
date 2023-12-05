@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -30,7 +29,7 @@ func parseColor(s string) (Color, error) {
 	case "green":
 		return green, nil
 	default:
-		return Color(0), errors.New(fmt.Sprintf("Invalid color %#v", s))
+		return Color(0), fmt.Errorf("invalid color %#v", s)
 	}
 }
 
@@ -64,15 +63,15 @@ func parseSet(setString string) (Set, error) {
 		setItemString = strings.TrimSpace(setItemString)
 		setItemStringSplit := strings.Split(setItemString, " ")
 		if len(setItemStringSplit) != 2 {
-			return nil, errors.New(fmt.Sprintf("Invalid set item %#v", setItemString))
+			return nil, fmt.Errorf("invalid set item %#v", setItemString)
 		}
 		colorCount, err := strconv.Atoi(setItemStringSplit[0])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Invalid set item count %#v", setItemStringSplit[0]))
+			return nil, fmt.Errorf("invalid set item count %#v", setItemStringSplit[0])
 		}
 		color, err := parseColor(setItemStringSplit[1])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Invalid set item color %#v", setItemStringSplit[1]))
+			return nil, fmt.Errorf("invalid set item color %#v", setItemStringSplit[1])
 		}
 		set[color] = colorCount
 	}
@@ -81,18 +80,18 @@ func parseSet(setString string) (Set, error) {
 
 func parseGame(line string) (Game, error) {
 	if !strings.HasPrefix(line, gamePrefix) {
-		return Game{}, errors.New(fmt.Sprintf("Line does not start with prefix %#v: %#v", gamePrefix, line))
+		return Game{}, fmt.Errorf("line does not start with prefix %#v: %#v", gamePrefix, line)
 	}
 
 	splitLine := strings.Split(line, ":")
 	if len(splitLine) != 2 {
-		return Game{}, errors.New(fmt.Sprintf("Line does not have a singular ':' %#v", line))
+		return Game{}, fmt.Errorf("line does not have a singular ':' %#v", line)
 	}
 
 	gameIdString := splitLine[0][len(gamePrefix):]
 	gameId, err := strconv.Atoi(gameIdString)
 	if err != nil {
-		return Game{}, errors.New(fmt.Sprintf("Invalid game ID %#v", gameIdString))
+		return Game{}, fmt.Errorf("invalid game ID %#v", gameIdString)
 	}
 
 	setsStrings := strings.Split(splitLine[1], ";")
@@ -147,11 +146,11 @@ func parseArgs() (Args, error) {
 	case 3:
 		parsedInputSet, err := parseSet(os.Args[2])
 		if err != nil {
-			return Args{}, errors.New(fmt.Sprintf("Invalid set %#v: %v", os.Args[2], err))
+			return Args{}, fmt.Errorf("invalid set %#v: %v", os.Args[2], err)
 		}
 		inputSet = &parsedInputSet
 	default:
-		return Args{}, errors.New(fmt.Sprintf("Invalid arguments. Expected %v <inputPath> [inputSet]", os.Args[0]))
+		return Args{}, fmt.Errorf("invalid arguments. Expected %v <inputPath> [inputSet]", os.Args[0])
 	}
 	return Args{InputPath: os.Args[1], InputSet: inputSet}, nil
 }

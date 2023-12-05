@@ -2,49 +2,12 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 )
-
-type Color int
-
-const (
-	red Color = iota + 1
-	blue
-	green
-)
-
-var colors = [3]Color{red, green, blue}
-
-func parseColor(s string) (Color, error) {
-	switch s {
-	case "red":
-		return red, nil
-	case "blue":
-		return blue, nil
-	case "green":
-		return green, nil
-	default:
-		return Color(0), errors.New(fmt.Sprintf("Invalid color %#v", s))
-	}
-}
-
-func (c Color) String() string {
-	switch c {
-	case red:
-		return "red"
-	case green:
-		return "green"
-	case blue:
-		return "blue"
-	default:
-		panic(fmt.Sprintf("Invalid color %d", int(c)))
-	}
-}
 
 type Card struct {
 	Id      int
@@ -70,23 +33,23 @@ func parseNumbers(numbersString string) ([]int, error) {
 
 func parseCard(line string) (Card, error) {
 	if !strings.HasPrefix(line, cardPrefix) {
-		return Card{}, errors.New(fmt.Sprintf("Line does not start with prefix %#v: %#v", cardPrefix, line))
+		return Card{}, fmt.Errorf("line does not start with prefix %#v: %#v", cardPrefix, line)
 	}
 
 	splitLine := strings.Split(line, ":")
 	if len(splitLine) != 2 {
-		return Card{}, errors.New(fmt.Sprintf("Line does not have a singular ':' %#v", line))
+		return Card{}, fmt.Errorf("line does not have a singular ':' %#v", line)
 	}
 
 	cardIdString := strings.TrimSpace(splitLine[0][len(cardPrefix):])
 	cardId, err := strconv.Atoi(cardIdString)
 	if err != nil {
-		return Card{}, errors.New(fmt.Sprintf("Invalid card ID %#v", cardIdString))
+		return Card{}, fmt.Errorf("invalid card ID %#v", cardIdString)
 	}
 
 	winningNonSplit := strings.Split(splitLine[1], "|")
 	if len(winningNonSplit) != 2 {
-		return Card{}, errors.New(fmt.Sprintf("Line does not have a singular '|' %#v", line))
+		return Card{}, fmt.Errorf("line does not have a singular '|' %#v", line)
 	}
 
 	winning, err := parseNumbers(winningNonSplit[0])
@@ -139,7 +102,7 @@ func parseArgs() (Args, error) {
 	case 3:
 		break
 	default:
-		return Args{}, errors.New(fmt.Sprintf("Invalid arguments. Expected %v <part> <inputPath>", os.Args[0]))
+		return Args{}, fmt.Errorf("invalid arguments. Expected %v <part> <inputPath>", os.Args[0])
 	}
 	var part int
 	switch os.Args[1] {
@@ -148,7 +111,7 @@ func parseArgs() (Args, error) {
 	case "2":
 		part = 2
 	default:
-		return Args{}, errors.New(fmt.Sprintf("Invalid part number %#v. Expected 1/2", os.Args[1]))
+		return Args{}, fmt.Errorf("invalid part number %#v. Expected 1/2", os.Args[1])
 	}
 	return Args{Part: part, InputPath: os.Args[2]}, nil
 }

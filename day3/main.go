@@ -41,12 +41,12 @@ func getInput(path string) (Engine, error) {
 	}
 
 	if len(engine) == 0 {
-		return nil, errors.New("Zero-length engine")
+		return nil, errors.New("zero-length engine")
 	}
 
 	for i, line := range engine {
 		if len(line) != len(engine[0]) {
-			return nil, errors.New(fmt.Sprintf("Jagged engine (line %v is length %v, line 1 is length %v)\n", i, len(line), len(engine[0])))
+			return nil, fmt.Errorf("jagged engine (line %v is length %v, line 1 is length %v)", i, len(line), len(engine[0]))
 		}
 	}
 
@@ -63,7 +63,7 @@ func parseArgs() (Args, error) {
 	case 3:
 		break
 	default:
-		return Args{}, errors.New(fmt.Sprintf("Invalid arguments. Expected %v <part> <inputPath>", os.Args[0]))
+		return Args{}, fmt.Errorf("invalid arguments. Expected %v <part> <inputPath>", os.Args[0])
 	}
 	var part int
 	switch os.Args[1] {
@@ -72,7 +72,7 @@ func parseArgs() (Args, error) {
 	case "2":
 		part = 2
 	default:
-		return Args{}, errors.New(fmt.Sprintf("Invalid part. Expected 1/2, got %#v", os.Args[1]))
+		return Args{}, fmt.Errorf("invalid part. Expected 1/2, got %#v", os.Args[1])
 	}
 	return Args{Part: part, InputPath: os.Args[2]}, nil
 }
@@ -303,7 +303,7 @@ func run() error {
 		fmt.Printf("%v\n", sum)
 
 	default:
-		return errors.New(fmt.Sprintf("Unknown part %v", args.Part))
+		return fmt.Errorf("unknown part %v", args.Part)
 	}
 
 	return nil
