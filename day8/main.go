@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -16,9 +17,9 @@ type Node struct {
 }
 
 type Network struct {
-	Nodes map[string]*Node
-	Start *Node
-	End   *Node
+	Nodes  map[string]*Node
+	Starts []*Node
+	Ends   []*Node
 }
 
 type Map struct {
@@ -42,7 +43,7 @@ func parseDirections(directionsString string) ([]bool, error) {
 	return result, nil
 }
 
-func getInput(path string) (Map, error) {
+func getInput(path string, multipleStarts bool) (Map, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return Map{}, err
@@ -111,18 +112,39 @@ func getInput(path string) (Map, error) {
 		}
 	}
 
-	nodeStart, err := getNode(nodes, "AAA")
-	if err != nil {
-		return Map{}, err
-	}
-	nodeEnd, err := getNode(nodes, "ZZZ")
-	if err != nil {
-		return Map{}, err
+	var startNodes []*Node
+	var endNodes []*Node
+	if multipleStarts {
+		for nodeName, node := range nodes {
+			if strings.HasSuffix(nodeName, "A") {
+				startNodes = append(startNodes, node)
+			}
+			if strings.HasSuffix(nodeName, "Z") {
+				endNodes = append(endNodes, node)
+			}
+		}
+		if len(startNodes) == 0 {
+			return Map{}, errors.New("no start nodes")
+		}
+		if len(endNodes) == 0 {
+			return Map{}, errors.New("no end nodes")
+		}
+	} else {
+		startNode, err := getNode(nodes, "AAA")
+		if err != nil {
+			return Map{}, err
+		}
+		endNode, err := getNode(nodes, "ZZZ")
+		if err != nil {
+			return Map{}, err
+		}
+		startNodes = []*Node{startNode}
+		endNodes = []*Node{endNode}
 	}
 	network := Network{
-		Nodes: nodes,
-		Start: nodeStart,
-		End:   nodeEnd,
+		Nodes:  nodes,
+		Starts: startNodes,
+		Ends:   endNodes,
 	}
 
 	return Map{Network: network, Directions: directions}, nil
@@ -134,6 +156,24 @@ func getNode(nodes map[string]*Node, nodeName string) (*Node, error) {
 		return nil, fmt.Errorf("unknown node %+v", nodeName)
 	}
 	return node, nil
+}
+
+func (n Network) isEndNode(node *Node) bool {
+	for _, endNode := range n.Ends {
+		if node == endNode {
+			return true
+		}
+	}
+	return false
+}
+
+func (n Network) areAllEndNodes(nodes []*Node) bool {
+	for _, node := range nodes {
+		if !n.isEndNode(node) {
+			return false
+		}
+	}
+	return true
 }
 
 type Args struct {
@@ -167,7 +207,8 @@ func run() error {
 	}
 	fmt.Printf("Args: %+v\n", args)
 
-	inputMap, err := getInput(args.InputPath)
+	multipleStarts := args.Part == 2
+	inputMap, err := getInput(args.InputPath, multipleStarts)
 	if err != nil {
 		return err
 	}
@@ -181,22 +222,40 @@ func run() error {
 		}
 	}
 	fmt.Println("")
-	i := 0
-	for node := inputMap.Network.Start; node != inputMap.Network.End; i++ {
-		turnRight := inputMap.Directions[i%len(inputMap.Directions)]
-		var newNode *Node
+	printSteps := true
+	step := 0
+	for nodes := inputMap.Network.Starts; !inputMap.Network.areAllEndNodes(nodes); step++ {
+		turnRight := inputMap.Directions[step%len(inputMap.Directions)]
 		var directionChar rune
 		if turnRight {
 			directionChar = 'R'
-			newNode = node.Right
 		} else {
 			directionChar = 'L'
-			newNode = node.Left
 		}
-		fmt.Printf("Step %v: %v (%c) -> %v\n", i, node.Name, directionChar, newNode.Name)
-		node = newNode
+		if printSteps {
+			fmt.Printf("Step %v: %c: ", step, directionChar)
+		}
+		for i, node := range nodes {
+			if printSteps {
+				if i > 0 {
+					fmt.Print("; ")
+				}
+				fmt.Printf("%v -> ", node.Name)
+			}
+			if turnRight {
+				nodes[i] = node.Right
+			} else {
+				nodes[i] = node.Left
+			}
+			if printSteps {
+				fmt.Printf("%v", nodes[i].Name)
+			}
+		}
+		if printSteps {
+			fmt.Println("")
+		}
 	}
-	fmt.Printf("Total steps: %v\n", i)
+	fmt.Printf("Total steps: %v\n", step)
 
 	return nil
 }
