@@ -15,80 +15,80 @@ import (
 type Card int
 
 const (
-	card2 Card = iota + 2
-	card3
-	card4
-	card5
-	card6
-	card7
-	card8
-	card9
-	cardT
-	cardJ
-	cardQ
-	cardK
-	cardA
+	Card2 Card = iota + 2
+	Card3
+	Card4
+	Card5
+	Card6
+	Card7
+	Card8
+	Card9
+	CardT
+	CardJ
+	CardQ
+	CardK
+	CardA
 )
 
 func parseCard(r rune) (Card, error) {
 	switch r {
 	case '2':
-		return card2, nil
+		return Card2, nil
 	case '3':
-		return card3, nil
+		return Card3, nil
 	case '4':
-		return card4, nil
+		return Card4, nil
 	case '5':
-		return card5, nil
+		return Card5, nil
 	case '6':
-		return card6, nil
+		return Card6, nil
 	case '7':
-		return card7, nil
+		return Card7, nil
 	case '8':
-		return card8, nil
+		return Card8, nil
 	case '9':
-		return card9, nil
+		return Card9, nil
 	case 'T':
-		return cardT, nil
+		return CardT, nil
 	case 'J':
-		return cardJ, nil
+		return CardJ, nil
 	case 'Q':
-		return cardQ, nil
+		return CardQ, nil
 	case 'K':
-		return cardK, nil
+		return CardK, nil
 	case 'A':
-		return cardA, nil
+		return CardA, nil
 	}
 	return 0, fmt.Errorf("invalid card %+v", r)
 }
 
 func (c Card) String() string {
 	switch c {
-	case card2:
+	case Card2:
 		return "2"
-	case card3:
+	case Card3:
 		return "3"
-	case card4:
+	case Card4:
 		return "4"
-	case card5:
+	case Card5:
 		return "5"
-	case card6:
+	case Card6:
 		return "6"
-	case card7:
+	case Card7:
 		return "7"
-	case card8:
+	case Card8:
 		return "8"
-	case card9:
+	case Card9:
 		return "9"
-	case cardT:
+	case CardT:
 		return "T"
-	case cardJ:
+	case CardJ:
 		return "J"
-	case cardQ:
+	case CardQ:
 		return "Q"
-	case cardK:
+	case CardK:
 		return "K"
-	case cardA:
+	case CardA:
 		return "A"
 	}
 	return fmt.Sprintf("?%v?", int(c))
@@ -97,30 +97,30 @@ func (c Card) String() string {
 type HandType int
 
 const (
-	handTypeHighCard HandType = iota + 1
-	handTypeOnePair
-	handTypeTwoPair
-	handTypeThreeOfAKind
-	handTypeFullHouse
-	handTypeFourOfAKind
-	handTypeFiveOfAKind
+	HandTypeHighCard HandType = iota + 1
+	HandTypeOnePair
+	HandTypeTwoPair
+	HandTypeThreeOfAKind
+	HandTypeFullHouse
+	HandTypeFourOfAKind
+	HandTypeFiveOfAKind
 )
 
 func (ht HandType) String() string {
 	switch ht {
-	case handTypeHighCard:
+	case HandTypeHighCard:
 		return "HighCard"
-	case handTypeOnePair:
+	case HandTypeOnePair:
 		return "OnePair"
-	case handTypeTwoPair:
+	case HandTypeTwoPair:
 		return "TwoPair"
-	case handTypeThreeOfAKind:
+	case HandTypeThreeOfAKind:
 		return "ThreeOfAKind"
-	case handTypeFullHouse:
+	case HandTypeFullHouse:
 		return "FullHouse"
-	case handTypeFourOfAKind:
+	case HandTypeFourOfAKind:
 		return "FourOfAKind"
-	case handTypeFiveOfAKind:
+	case HandTypeFiveOfAKind:
 		return "FiveOfAKind"
 	}
 	return "Unknown"
@@ -178,7 +178,7 @@ func isOfAKind(n int, cards []Card, jackIsJoker bool) (found bool, part []Card, 
 		}
 
 		// Check for jokers
-		jokerCount := countsMap[cardJ]
+		jokerCount := countsMap[CardJ]
 		jokersNeeded := n - cardCount
 		if jokerCount < jokersNeeded {
 			continue
@@ -188,13 +188,13 @@ func isOfAKind(n int, cards []Card, jackIsJoker bool) (found bool, part []Card, 
 			part = append(part, card)
 		}
 		for i := 0; i < jokersNeeded; i++ {
-			part = append(part, cardJ)
+			part = append(part, CardJ)
 		}
 		for i := 0; i < jokerCount-jokersNeeded; i++ {
-			rest = append(rest, cardJ)
+			rest = append(rest, CardJ)
 		}
 		for _, otherCard := range cards {
-			if otherCard != card && otherCard != cardJ {
+			if otherCard != card && otherCard != CardJ {
 				rest = append(rest, otherCard)
 			}
 		}
@@ -203,71 +203,63 @@ func isOfAKind(n int, cards []Card, jackIsJoker bool) (found bool, part []Card, 
 	return false, cards, nil
 }
 
-func getHandType(cards []Card, jackIsJoker bool) HandType {
+func getHandType(cards [5]Card, jackIsJoker bool) HandType {
 	if true {
-		// TODO Doesn't work
+		countsMap := getCounts(cards[:])
 		wildCount := 0
 		if jackIsJoker {
-			var newCards []Card
-			for _, card := range cards {
-				if card == cardJ {
-					wildCount++
-				} else {
-					newCards = append(newCards, card)
-				}
-			}
-			cards = newCards
+			wildCount = countsMap[CardJ]
+			delete(countsMap, CardJ)
 		}
-		countsMap := getCounts(cards)
+
 		var counts []t.T2[Card, int]
 		for k, v := range countsMap {
 			counts = append(counts, t.New2(k, v))
 		}
 		slices.SortFunc(counts, func(a, b t.T2[Card, int]) int { return b.V2 - a.V2 })
-		maxCount := wildCount
-		if len(counts) > 0 {
-			maxCount += counts[0].V2
+		if wildCount > 0 && len(counts) > 0 {
+			counts[0] = t.New2(counts[0].V1, counts[0].V2+wildCount)
 		}
 		switch len(countsMap) {
 		case 0:
-			return handTypeFiveOfAKind
+			return HandTypeFiveOfAKind
 		case 1:
-			return handTypeFiveOfAKind
+			return HandTypeFiveOfAKind
 		case 2:
-			if maxCount == 4 {
-				return handTypeFourOfAKind
+			if counts[0].V2 == 4 {
+				return HandTypeFourOfAKind
 			}
-			return handTypeFullHouse
+			return HandTypeFullHouse
 		case 3:
-			if maxCount == 3 {
-				return handTypeThreeOfAKind
+			if counts[0].V2 == 3 {
+				return HandTypeThreeOfAKind
 			}
-			return handTypeTwoPair
+			return HandTypeTwoPair
 		case 4:
-			return handTypeOnePair
+			return HandTypeOnePair
 		case 5:
-			return handTypeHighCard
+			return HandTypeHighCard
 		}
 		panic(fmt.Sprintf("unexpected: cards=%v len(countsMap)=%v wildCount=%v", cards, len(countsMap), wildCount))
 
 	} else {
 		isFiveOfAKind, _, _ := isOfAKind(5, cards[:], jackIsJoker)
 		if isFiveOfAKind {
-			return handTypeFiveOfAKind
+			return HandTypeFiveOfAKind
 		}
 
 		isFourOfAKind, _, _ := isOfAKind(4, cards[:], jackIsJoker)
 		if isFourOfAKind {
-			return handTypeFourOfAKind
+			return HandTypeFourOfAKind
 		}
 
 		isThreeOfAKind, _, restCards := isOfAKind(3, cards[:], jackIsJoker)
 		if isThreeOfAKind {
 			isFullHouse, _, _ := isOfAKind(2, restCards, jackIsJoker)
 			if isFullHouse {
-				return handTypeFullHouse
+				return HandTypeFullHouse
 			} else {
-				return handTypeThreeOfAKind
+				return HandTypeThreeOfAKind
 			}
 		}
 
@@ -275,12 +267,12 @@ func getHandType(cards []Card, jackIsJoker bool) HandType {
 		if isTwoOfAKind {
 			isTwoPair, _, _ := isOfAKind(2, restCards, jackIsJoker)
 			if isTwoPair {
-				return handTypeTwoPair
+				return HandTypeTwoPair
 			} else {
-				return handTypeOnePair
+				return HandTypeOnePair
 			}
 		}
-		return handTypeHighCard
+		return HandTypeHighCard
 	}
 }
 
@@ -378,14 +370,18 @@ func parseArgs() (Args, error) {
 
 func getSortCardFunc(jackIsJoker bool) func(Card, Card) int {
 	return func(card1, card2 Card) int {
+		cardInt1 := int(card1)
+		cardInt2 := int(card2)
 		if jackIsJoker {
-			if card1 == cardJ {
-				return -1
-			} else if card2 == cardJ {
-				return 1
+			if card1 == CardJ {
+				cardInt1 = int(Card2 - 1)
+			}
+			if card2 == CardJ {
+				cardInt2 = int(Card2 - 1)
 			}
 		}
-		return int(card1 - card2)
+		// fmt.Printf("c1:%v (%v) c2:%v (%v) diff=%v\n", card1, cardInt1, card2, cardInt2, cardInt1-cardInt2)
+		return cardInt1 - cardInt2
 	}
 }
 
