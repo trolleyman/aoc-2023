@@ -148,132 +148,43 @@ func getCounts[T comparable](values []T) map[T]int {
 	return counts
 }
 
-func isOfAKind(n int, cards []Card, jackIsJoker bool) (found bool, part []Card, rest []Card) {
-	countsMap := getCounts(cards)
+func getHandType(cards [5]Card, jackIsJoker bool) HandType {
+	countsMap := getCounts(cards[:])
+	wildCount := 0
+	if jackIsJoker {
+		wildCount = countsMap[CardJ]
+		delete(countsMap, CardJ)
+	}
+
 	var counts []t.T2[Card, int]
 	for k, v := range countsMap {
 		counts = append(counts, t.New2(k, v))
 	}
 	slices.SortFunc(counts, func(a, b t.T2[Card, int]) int { return b.V2 - a.V2 })
-
-	for _, t := range counts {
-		card := t.V1
-		cardCount := t.V2
-		if cardCount >= n {
-			for i := 0; i < n; i++ {
-				part = append(part, card)
-			}
-			for i := 0; i < cardCount-n; i++ {
-				rest = append(rest, card)
-			}
-			for _, otherCard := range cards {
-				if otherCard != card {
-					rest = append(rest, otherCard)
-				}
-			}
-			return true, part, rest
-		}
-		if !jackIsJoker {
-			continue
-		}
-
-		// Check for jokers
-		jokerCount := countsMap[CardJ]
-		jokersNeeded := n - cardCount
-		if jokerCount < jokersNeeded {
-			continue
-		}
-
-		for i := 0; i < cardCount; i++ {
-			part = append(part, card)
-		}
-		for i := 0; i < jokersNeeded; i++ {
-			part = append(part, CardJ)
-		}
-		for i := 0; i < jokerCount-jokersNeeded; i++ {
-			rest = append(rest, CardJ)
-		}
-		for _, otherCard := range cards {
-			if otherCard != card && otherCard != CardJ {
-				rest = append(rest, otherCard)
-			}
-		}
-		return true, part, rest
+	if wildCount > 0 && len(counts) > 0 {
+		counts[0] = t.New2(counts[0].V1, counts[0].V2+wildCount)
 	}
-	return false, cards, nil
-}
-
-func getHandType(cards [5]Card, jackIsJoker bool) HandType {
-	if true {
-		countsMap := getCounts(cards[:])
-		wildCount := 0
-		if jackIsJoker {
-			wildCount = countsMap[CardJ]
-			delete(countsMap, CardJ)
-		}
-
-		var counts []t.T2[Card, int]
-		for k, v := range countsMap {
-			counts = append(counts, t.New2(k, v))
-		}
-		slices.SortFunc(counts, func(a, b t.T2[Card, int]) int { return b.V2 - a.V2 })
-		if wildCount > 0 && len(counts) > 0 {
-			counts[0] = t.New2(counts[0].V1, counts[0].V2+wildCount)
-		}
-		switch len(countsMap) {
-		case 0:
-			return HandTypeFiveOfAKind
-		case 1:
-			return HandTypeFiveOfAKind
-		case 2:
-			if counts[0].V2 == 4 {
-				return HandTypeFourOfAKind
-			}
-			return HandTypeFullHouse
-		case 3:
-			if counts[0].V2 == 3 {
-				return HandTypeThreeOfAKind
-			}
-			return HandTypeTwoPair
-		case 4:
-			return HandTypeOnePair
-		case 5:
-			return HandTypeHighCard
-		}
-		panic(fmt.Sprintf("unexpected: cards=%v len(countsMap)=%v wildCount=%v", cards, len(countsMap), wildCount))
-
-	} else {
-		isFiveOfAKind, _, _ := isOfAKind(5, cards[:], jackIsJoker)
-		if isFiveOfAKind {
-			return HandTypeFiveOfAKind
-		}
-
-		isFourOfAKind, _, _ := isOfAKind(4, cards[:], jackIsJoker)
-		if isFourOfAKind {
+	switch len(countsMap) {
+	case 0:
+		return HandTypeFiveOfAKind
+	case 1:
+		return HandTypeFiveOfAKind
+	case 2:
+		if counts[0].V2 == 4 {
 			return HandTypeFourOfAKind
 		}
-
-		isThreeOfAKind, _, restCards := isOfAKind(3, cards[:], jackIsJoker)
-		if isThreeOfAKind {
-			isFullHouse, _, _ := isOfAKind(2, restCards, jackIsJoker)
-			if isFullHouse {
-				return HandTypeFullHouse
-			} else {
-				return HandTypeThreeOfAKind
-			}
+		return HandTypeFullHouse
+	case 3:
+		if counts[0].V2 == 3 {
+			return HandTypeThreeOfAKind
 		}
-
-		isTwoOfAKind, _, restCards := isOfAKind(2, cards[:], jackIsJoker)
-		if isTwoOfAKind {
-			isTwoPair, _, _ := isOfAKind(2, restCards, jackIsJoker)
-			if isTwoPair {
-				return HandTypeTwoPair
-			} else {
-				return HandTypeOnePair
-			}
-		}
+		return HandTypeTwoPair
+	case 4:
+		return HandTypeOnePair
+	case 5:
 		return HandTypeHighCard
 	}
+	panic(fmt.Sprintf("unexpected: cards=%v len(countsMap)=%v wildCount=%v", cards, len(countsMap), wildCount))
 }
 
 func createHand(cards [5]Card, jackIsJoker bool) Hand {
@@ -380,7 +291,6 @@ func getSortCardFunc(jackIsJoker bool) func(Card, Card) int {
 				cardInt2 = int(Card2 - 1)
 			}
 		}
-		// fmt.Printf("c1:%v (%v) c2:%v (%v) diff=%v\n", card1, cardInt1, card2, cardInt2, cardInt1-cardInt2)
 		return cardInt1 - cardInt2
 	}
 }
