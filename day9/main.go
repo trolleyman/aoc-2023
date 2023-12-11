@@ -111,14 +111,22 @@ func run() error {
 		for i := len(diffs) - 2; i >= 0; i-- {
 			currentDiff := diffs[i]
 			prevDiff := diffs[i+1]
-			currentDiff = append(currentDiff, currentDiff[len(currentDiff)-1]+prevDiff[len(prevDiff)-1])
+			if args.Part == 1 {
+				currentDiff = append(currentDiff, currentDiff[len(currentDiff)-1]+prevDiff[len(prevDiff)-1])
+			} else {
+				currentDiff = append([]int{currentDiff[0] - prevDiff[0]}, currentDiff...)
+			}
 			diffs[i] = currentDiff
 		}
 
 		for i := 0; i < len(diffs); i++ {
 			fmt.Printf("H%v #%v: %v\n", hi, i, diffs[i])
 		}
-		extrapolatedValueSum += diffs[0][len(diffs[0])-1]
+		if args.Part == 1 {
+			extrapolatedValueSum += diffs[0][len(diffs[0])-1]
+		} else {
+			extrapolatedValueSum += diffs[0][0]
+		}
 	}
 	fmt.Printf("Extrapolated values sum: %v\n", extrapolatedValueSum)
 
