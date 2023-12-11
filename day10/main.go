@@ -87,6 +87,38 @@ func (pm *PipeMaze) getTile(position Vec2) *Tile {
 	return pm.Tiles[position.Y][position.X]
 }
 
+func isConnectingIgnoring(tile *Tile, direction Direction, ignoring func(*Tile) bool) bool {
+	if tile == nil {
+		return false
+	}
+	if ignoring(tile) {
+		return false
+	}
+	return tile.isConnecting(direction)
+}
+
+func (pm *PipeMaze) isIntersectionFree(intersection Vec2, direction Direction, ignoring func(*Tile) bool) bool {
+	newIntersection := add(intersection, direction.getOffset())
+	if newIntersection.X < 0 || newIntersection.Y < 0 || newIntersection.X > pm.Size.X || newIntersection.Y > pm.Size.Y {
+		return false
+	}
+	nw := pm.getTile(Vec2{intersection.X - 1, intersection.Y - 1})
+	ne := pm.getTile(Vec2{intersection.X, intersection.Y - 1})
+	sw := pm.getTile(Vec2{intersection.X - 1, intersection.Y})
+	se := pm.getTile(Vec2{intersection.X, intersection.Y})
+	switch direction {
+	case DirectionNorth:
+		return !isConnectingIgnoring(nw, DirectionEast, ignoring) && !isConnectingIgnoring(ne, DirectionWest, ignoring)
+	case DirectionEast:
+		return !isConnectingIgnoring(ne, DirectionSouth, ignoring) && !isConnectingIgnoring(se, DirectionNorth, ignoring)
+	case DirectionSouth:
+		return !isConnectingIgnoring(sw, DirectionEast, ignoring) && !isConnectingIgnoring(se, DirectionWest, ignoring)
+	case DirectionWest:
+		return !isConnectingIgnoring(nw, DirectionSouth, ignoring) && !isConnectingIgnoring(sw, DirectionNorth, ignoring)
+	}
+	panic("invalid direction")
+}
+
 func (pm *PipeMaze) String() string {
 	result := ""
 	for i, tileRow := range pm.Tiles {
@@ -248,6 +280,10 @@ func run() error {
 			val := intMaze[y][x]
 			if val < 0 {
 				fmt.Printf("%v", pipeMaze.getTile(Vec2{x, y}))
+			} else if val == 0 {
+				fmt.Print("S")
+			} else if val == step {
+				fmt.Print("X")
 			} else {
 				fmt.Printf("%v", val%10)
 			}
@@ -258,6 +294,82 @@ func run() error {
 
 	fmt.Printf("Max step: %v\n", step)
 
+	if args.Part == 1 {
+		return nil
+	}
+
+	// Now get all the tiles enclosed by the loop
+	var intersectionExpandSet []Vec2
+	var isIntersectionOutside [][]bool
+	for y := 0; y <= pipeMaze.Size.Y; y++ {
+		var intersectionRow []bool
+		for x := 0; x <= pipeMaze.Size.X; x++ {
+			isOutside := x == 0 || y == 0 || x == pipeMaze.Size.X || y == pipeMaze.Size.Y
+			intersectionRow = append(intersectionRow, isOutside)
+			if isOutside {
+				intersectionExpandSet = append(intersectionExpandSet, Vec2{x, y})
+			}
+		}
+		isIntersectionOutside = append(isIntersectionOutside, intersectionRow)
+	}
+
+	for len(intersectionExpandSet) > 0 {
+		var newIntersectionExpandSet []Vec2
+		for _, intersection := range intersectionExpandSet {
+			// fmt.Printf("Intersection %v:", intersection)
+			for _, direction := range Directions {
+				// fmt.Printf(" <dir %v>", direction)
+				if pipeMaze.isIntersectionFree(intersection, direction, func(t *Tile) bool { return intMaze[t.Position.Y][t.Position.X] < 0 }) {
+					newIntersection := add(intersection, direction.getOffset())
+					// fmt.Printf(" <intersection free %v>", newIntersection)
+					if !isIntersectionOutside[newIntersection.Y][newIntersection.X] {
+						isIntersectionOutside[newIntersection.Y][newIntersection.X] = true
+						// fmt.Print(" <outside>")
+						newIntersectionExpandSet = append(newIntersectionExpandSet, newIntersection)
+					}
+				}
+			}
+			// fmt.Printf("\n")
+		}
+		intersectionExpandSet = newIntersectionExpandSet
+	}
+
+	fmt.Printf("\n")
+	for _, intersectionRow := range isIntersectionOutside {
+		for _, isOutside := range intersectionRow {
+			if isOutside {
+				fmt.Print("-")
+			} else {
+				fmt.Print("@")
+			}
+		}
+		fmt.Printf("\n")
+	}
+
+	fmt.Printf("\n")
+	insideCount := 0
+	for y, tileRow := range pipeMaze.Tiles {
+		for x, tile := range tileRow {
+			if tile.IsPipe && intMaze[y][x] >= 0 {
+				fmt.Printf("%v", tile)
+			} else {
+				isOutside := isIntersectionOutside[y][x] && isIntersectionOutside[y+1][x] && isIntersectionOutside[y][x+1] && isIntersectionOutside[y+1][x+1]
+				if isOutside {
+					if true {
+						fmt.Printf("%v", tile)
+					} else {
+						fmt.Printf("O")
+					}
+				} else {
+					fmt.Printf("I")
+					insideCount++
+				}
+			}
+		}
+		fmt.Printf("\n")
+	}
+
+	fmt.Printf("\nTotal inside: %v\n", insideCount)
 	return nil
 }
 
