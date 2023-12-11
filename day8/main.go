@@ -16,26 +16,51 @@ type Node struct {
 	Right *Node
 }
 
+func (n *Node) getNextNode(direction Direction) *Node {
+	if direction == DirectionLeft {
+		return n.Left
+	} else {
+		return n.Right
+	}
+}
+
 type Network struct {
 	Nodes  map[string]*Node
 	Starts []*Node
 	Ends   []*Node
 }
 
+type Direction bool
+
+const (
+	DirectionLeft  = false
+	DirectionRight = true
+)
+
+func (d Direction) String() string {
+	switch d {
+	case DirectionLeft:
+		return "L"
+	case DirectionRight:
+		return "R"
+	}
+	panic("unreachable")
+}
+
 type Map struct {
 	// false is left, true is right
-	Directions []bool
+	Directions []Direction
 	Network    Network
 }
 
-func parseDirections(directionsString string) ([]bool, error) {
-	result := make([]bool, 0, len(directionsString))
+func parseDirections(directionsString string) ([]Direction, error) {
+	result := make([]Direction, 0, len(directionsString))
 	for _, r := range directionsString {
 		switch r {
 		case 'L':
-			result = append(result, false)
+			result = append(result, DirectionLeft)
 		case 'R':
-			result = append(result, true)
+			result = append(result, DirectionRight)
 		default:
 			return nil, fmt.Errorf("invalid directions string (encountered %+v): %+v", r, directionsString)
 		}
@@ -43,7 +68,7 @@ func parseDirections(directionsString string) ([]bool, error) {
 	return result, nil
 }
 
-func getInput(path string, multipleStarts bool) (Map, error) {
+func getInput(path string, multipleRouters bool) (Map, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return Map{}, err
@@ -114,7 +139,7 @@ func getInput(path string, multipleStarts bool) (Map, error) {
 
 	var startNodes []*Node
 	var endNodes []*Node
-	if multipleStarts {
+	if multipleRouters {
 		for nodeName, node := range nodes {
 			if strings.HasSuffix(nodeName, "A") {
 				startNodes = append(startNodes, node)
@@ -207,33 +232,51 @@ func run() error {
 	}
 	fmt.Printf("Args: %+v\n", args)
 
-	multipleStarts := args.Part == 2
-	inputMap, err := getInput(args.InputPath, multipleStarts)
+	multipleRouters := args.Part == 2
+	inputMap, err := getInput(args.InputPath, multipleRouters)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Directions: ")
-	for _, isRight := range inputMap.Directions {
-		if isRight {
-			fmt.Print("R")
-		} else {
-			fmt.Print("L")
-		}
+	fmt.Printf("Directions (%v): ", len(inputMap.Directions))
+	for _, direction := range inputMap.Directions {
+		fmt.Printf("%v", direction)
 	}
 	fmt.Println("")
+	totalSteps := getTotalStepsAnalytical(inputMap)
+	fmt.Printf("Total steps: %v\n", totalSteps)
+
+	return nil
+}
+
+func gcd(a, b int) int {
+	if b == 0 {
+		return a
+	}
+	return gcd(b, a%b)
+}
+
+func lcm(a, b int) int {
+	return a / gcd(a, b) * b
+}
+
+func getTotalStepsAnalytical(inputMap Map) int {
+	totalSteps := 1
+	for i, node := range inputMap.Network.Starts {
+		offset, length, endSteps := getPeriodicity(inputMap, node)
+		fmt.Printf("Ghost %v: start=%v, offset=%v, length=%v /lendir=%v endSteps=%v\n", i, node.Name, offset, length, length/len(inputMap.Directions), endSteps)
+		totalSteps = lcm(totalSteps, length)
+	}
+	return totalSteps
+}
+
+func getTotalSteps(inputMap Map) int {
 	printSteps := true
 	step := 0
 	for nodes := inputMap.Network.Starts; !inputMap.Network.areAllEndNodes(nodes); step++ {
-		turnRight := inputMap.Directions[step%len(inputMap.Directions)]
-		var directionChar rune
-		if turnRight {
-			directionChar = 'R'
-		} else {
-			directionChar = 'L'
-		}
+		direction := inputMap.Directions[step%len(inputMap.Directions)]
 		if printSteps {
-			fmt.Printf("Step %v: %c: ", step, directionChar)
+			fmt.Printf("Step %v (%v): ", step, direction)
 		}
 		for i, node := range nodes {
 			if printSteps {
@@ -242,11 +285,7 @@ func run() error {
 				}
 				fmt.Printf("%v -> ", node.Name)
 			}
-			if turnRight {
-				nodes[i] = node.Right
-			} else {
-				nodes[i] = node.Left
-			}
+			nodes[i] = node.getNextNode(direction)
 			if printSteps {
 				fmt.Printf("%v", nodes[i].Name)
 			}
@@ -255,9 +294,26 @@ func run() error {
 			fmt.Println("")
 		}
 	}
-	fmt.Printf("Total steps: %v\n", step)
+	return step
+}
 
-	return nil
+func getPeriodicity(inputMap Map, startNode *Node) (offset int, length int, endSteps []int) {
+	nodeDirectionIndexSteps := make(map[t.T2[*Node, int]]int)
+	for step, node := 0, startNode; ; step++ {
+		directionIndex := step % len(inputMap.Directions)
+		nodeDirectionIndex := t.New2(node, directionIndex)
+		if nodeDirectionIndexStep, found := nodeDirectionIndexSteps[nodeDirectionIndex]; found {
+			// Periodicity found
+			offset = nodeDirectionIndexStep
+			length = step - nodeDirectionIndexStep
+			return
+		}
+		if inputMap.Network.isEndNode(node) {
+			endSteps = append(endSteps, step)
+		}
+		nodeDirectionIndexSteps[nodeDirectionIndex] = step
+		node = node.getNextNode(inputMap.Directions[directionIndex])
+	}
 }
 
 func main() {
