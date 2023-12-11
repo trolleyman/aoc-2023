@@ -33,33 +33,7 @@ func (u Universe) String() string {
 }
 
 func (u Universe) expand() Universe {
-	emptyRows := make(map[int]bool)
-	for y, row := range u {
-		isRowEmpty := true
-		for _, s := range row {
-			if s {
-				isRowEmpty = false
-				break
-			}
-		}
-		if isRowEmpty {
-			emptyRows[y] = true
-		}
-	}
-
-	emptyColumns := make(map[int]bool)
-	for x := 0; x < len(u[0]); x++ {
-		isColumnEmpty := true
-		for _, row := range u {
-			if row[x] {
-				isColumnEmpty = false
-				break
-			}
-		}
-		if isColumnEmpty {
-			emptyColumns[x] = true
-		}
-	}
+	emptyRows, emptyColumns := u.getEmptyRowsColumns()
 
 	newU := make([][]Space, 0, len(u)+len(emptyRows))
 	for y, row := range u {
@@ -79,6 +53,37 @@ func (u Universe) expand() Universe {
 		}
 	}
 	return newU
+}
+
+func (u Universe) getEmptyRowsColumns() (emptyRows map[int]bool, emptyColumns map[int]bool) {
+	emptyRows = make(map[int]bool)
+	for y, row := range u {
+		isRowEmpty := true
+		for _, s := range row {
+			if s {
+				isRowEmpty = false
+				break
+			}
+		}
+		if isRowEmpty {
+			emptyRows[y] = true
+		}
+	}
+
+	emptyColumns = make(map[int]bool)
+	for x := 0; x < len(u[0]); x++ {
+		isColumnEmpty := true
+		for _, row := range u {
+			if row[x] {
+				isColumnEmpty = false
+				break
+			}
+		}
+		if isColumnEmpty {
+			emptyColumns[x] = true
+		}
+	}
+	return
 }
 
 func getInput(path string) (Universe, error) {
@@ -161,6 +166,13 @@ func run() error {
 	shortestPathSum := expandedUniverse.getShortestPathSum()
 	fmt.Printf("\nShortest path sum: %v\n", shortestPathSum)
 
+	if args.Part == 2 {
+		expandedTimes := 1000000
+		shortestPathSum = universe.getShortestPathSumExpanded(expandedTimes)
+
+		fmt.Printf("\nShortest path sum (expanded=%v): %v\n", expandedTimes, shortestPathSum)
+	}
+
 	return nil
 }
 
@@ -176,6 +188,49 @@ func (u Universe) getGalaxies() (galaxies []Vec2) {
 				galaxies = append(galaxies, Vec2{x, y})
 			}
 		}
+	}
+	return
+}
+
+func getShortestPathSumExpanded(galaxies []Vec2, i int, emptyRows map[int]bool, emptyColumns map[int]bool, expandedTimes int) (sum int) {
+	galaxy := galaxies[i]
+	for j := i + 1; j < len(galaxies); j++ {
+		if i == j {
+			continue
+		}
+		otherGalaxy := galaxies[j]
+		minX, maxX := galaxy.X, otherGalaxy.X
+		if minX > maxX {
+			minX, maxX = maxX, minX
+		}
+		minY, maxY := galaxy.Y, otherGalaxy.Y
+		if minY > maxY {
+			minY, maxY = maxY, minY
+		}
+		distance := maxX - minX + maxY - minY
+		for x := minX + 1; x < maxX; x++ {
+			if emptyColumns[x] {
+				distance += expandedTimes - 1
+				// fmt.Printf("Empty column %v\n", x)
+			}
+		}
+		for y := minY + 1; y < maxY; y++ {
+			if emptyRows[y] {
+				distance += expandedTimes - 1
+				// fmt.Printf("Empty row %v\n", y)
+			}
+		}
+		// fmt.Printf("Galaxy %v -> %v = %v\n", galaxy, otherGalaxy, distance)
+		sum += distance
+	}
+	return
+}
+
+func (u Universe) getShortestPathSumExpanded(expandedTimes int) (sum int) {
+	emptyRows, emptyColumns := u.getEmptyRowsColumns()
+	galaxies := u.getGalaxies()
+	for i := range galaxies {
+		sum += getShortestPathSumExpanded(galaxies, i, emptyRows, emptyColumns, expandedTimes)
 	}
 	return
 }
@@ -196,7 +251,7 @@ func getShortestPathSum(galaxies []Vec2, i int) (sum int) {
 			ydiff = -ydiff
 		}
 		distance := xdiff + ydiff
-		fmt.Printf("Galaxy %v -> %v = %v\n", galaxy, otherGalaxy, distance)
+		// fmt.Printf("Galaxy %v -> %v = %v\n", galaxy, otherGalaxy, distance)
 		sum += distance
 	}
 	return
