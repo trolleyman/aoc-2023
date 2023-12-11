@@ -132,7 +132,7 @@ func (pm *PipeMaze) String() string {
 	return result
 }
 
-func getInput(path string, multipleRouters bool) (PipeMaze, error) {
+func getInput(path string) (PipeMaze, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return PipeMaze{}, err
@@ -231,8 +231,7 @@ func run() error {
 	}
 	fmt.Printf("Args: %+v\n", args)
 
-	multipleRouters := args.Part == 2
-	pipeMaze, err := getInput(args.InputPath, multipleRouters)
+	pipeMaze, err := getInput(args.InputPath)
 	if err != nil {
 		return err
 	}
