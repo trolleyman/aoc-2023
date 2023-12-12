@@ -28,23 +28,61 @@ func (rangeMap RangeMap) getDestination(source int) int {
 
 func (rangeMap RangeMap) getDestinations(sourceRanges []Range) []Range {
 	destinationRanges := make([]Range, 0, len(sourceRanges))
+	// fmt.Printf("  # %+v\n", rangeMap)
 	for _, sourceRange := range sourceRanges {
+		// fmt.Printf("  <- %v\n", sourceRange)
 		for _, item := range rangeMap {
-			if sourceRange.Length <= 0 {
-				break
+			if sourceRange.Start < item.SourceStart {
+				destinationRangeLength := min(sourceRange.Length, item.SourceStart-sourceRange.Start)
+				destinationRange := Range{Start: sourceRange.Start, Length: destinationRangeLength}
+				destinationRanges = append(destinationRanges, destinationRange)
+
+				sourceRangeLength := sourceRange.Length - destinationRangeLength
+				sourceRange = Range{Start: item.SourceStart, Length: sourceRangeLength}
+				// fmt.Printf("    + %v (%v)\n", destinationRange, sourceRange)
+				if sourceRange.Length <= 0 {
+					break
+				}
 			}
-			newRangeStart := max(sourceRange.Start, item.SourceStart)
-			newRangeLength := min(sourceRange.Start+sourceRange.Length, item.SourceStart+item.Length) - newRangeStart
-			if newRangeLength > 0 {
-				sourceRange = Range{Start: newRangeStart, Length: max(sourceRange.Start+sourceRange.Length, item.SourceStart+item.Length) - newRangeStart}
-				destinationRanges = append(destinationRanges, Range{Start: item.DestinationStart, Length: newRangeLength})
+
+			if sourceRange.Start < item.SourceStart+item.Length {
+				destinationRangeLength := min(sourceRange.Length, item.Length-sourceRange.Start+item.SourceStart)
+				destinationRange := Range{Start: sourceRange.Start - item.SourceStart + item.DestinationStart, Length: destinationRangeLength}
+				destinationRanges = append(destinationRanges, destinationRange)
+
+				sourceRangeLength := sourceRange.Length - destinationRangeLength
+				sourceRange = Range{Start: item.SourceStart + item.Length, Length: sourceRangeLength}
+				// fmt.Printf("    + %v (%v)\n", destinationRange, sourceRange)
+				if sourceRange.Length <= 0 {
+					break
+				}
 			}
 		}
 		if sourceRange.Length > 0 {
+			// fmt.Printf("  + %v\n", sourceRange)
 			destinationRanges = append(destinationRanges, sourceRange)
 		}
 	}
-	return destinationRanges
+	slices.SortFunc(destinationRanges, func(a, b Range) int { return a.Start - b.Start })
+	// fmt.Printf("  @- %v\n", destinationRanges)
+	var newDestinationRanges []Range
+	for i, destRange := range destinationRanges {
+		if i == 0 {
+			newDestinationRanges = append(newDestinationRanges, destRange)
+			continue
+		}
+
+		prevDestinationRange := newDestinationRanges[len(newDestinationRanges)-1]
+		// fmt.Printf("  > %v <= %v + %v = %v\n", destRange.Start, prevDestinationRange.Start, prevDestinationRange.Length, prevDestinationRange.Start+prevDestinationRange.Length)
+		if destRange.Start <= prevDestinationRange.Start+prevDestinationRange.Length {
+			// Merge ranges
+			newDestinationRanges[len(newDestinationRanges)-1] = Range{Start: prevDestinationRange.Start, Length: max(prevDestinationRange.Length, destRange.Start+destRange.Length-prevDestinationRange.Start)}
+		} else {
+			newDestinationRanges = append(newDestinationRanges, destRange)
+		}
+	}
+	// fmt.Printf("  @= %v\n", newDestinationRanges)
+	return newDestinationRanges
 }
 
 type Almanac struct {
@@ -93,6 +131,7 @@ func parseMap(scanner *bufio.Scanner) (RangeMap, error) {
 		}
 		rangeMap = append(rangeMap, RangeMapItem{SourceStart: numbers[1], DestinationStart: numbers[0], Length: numbers[2]})
 	}
+	slices.SortFunc(rangeMap, func(a, b RangeMapItem) int { return a.SourceStart - b.SourceStart })
 	return rangeMap, nil
 }
 
@@ -243,24 +282,19 @@ func run() error {
 
 	case 2:
 		// Part 2
-		// TODO
-		fmt.Println("Seed -> Soil -> Fertilizer -> Water -> Light -> Temperature -> Humidity -> Location")
+		names := []string{"Seed", "Soil", "Fertilizer", "Water", "Light", "Temperature", "Humidity", "Location"}
 		seedToLocation := []RangeMap{almanac.SeedToSoil, almanac.SoilToFertilizer, almanac.FertilizerToWater, almanac.WaterToLight, almanac.LightToTemperature, almanac.TemperatureToHumidity, almanac.HumidityToLocation}
-		var locationRanges []Range
+		var values []Range
 		for i := 0; i < len(almanac.Seeds); i += 2 {
-			seedRange := Range{Start: almanac.Seeds[i], Length: almanac.Seeds[i+1]}
-			fmt.Printf("%v", seedRange)
-			values := []Range{seedRange}
-			for _, rangeMap := range seedToLocation {
-				values = rangeMap.getDestinations(values)
-				fmt.Printf(" -> %v", values)
-			}
-			fmt.Println()
-			locationRanges = append(locationRanges, values...)
+			values = append(values, Range{Start: almanac.Seeds[i], Length: almanac.Seeds[i+1]})
 		}
-		fmt.Printf("\nLocation ranges: %v", locationRanges)
-		minLocations := make([]int, 0, len(locationRanges))
-		for _, locationRange := range locationRanges {
+		for i, rangeMap := range seedToLocation {
+			fmt.Printf("%v: %v\n", names[i], values)
+			values = rangeMap.getDestinations(values)
+		}
+		fmt.Printf("Location: %v", values)
+		minLocations := make([]int, 0, len(values))
+		for _, locationRange := range values {
 			minLocations = append(minLocations, locationRange.Start)
 		}
 		minLocation := slices.Min(minLocations)
